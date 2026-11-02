@@ -18,7 +18,7 @@ plugins {
  * 版本号。产物文件名（`apk/dinner-<版本>-debug.apk`）与 BuildConfig 都从这里取，
  * 免得改了 defaultConfig 忘了改脚本。
  */
-val appVersionName = "1.0.0"
+val appVersionName = "1.0.1"
 
 /**
  * 构建目录重定向：**只有本机需要，CI 与普通机器不设就走默认的 `app/build`。**

@@ -26,6 +26,11 @@ mkdir -p "$GRADLE_HOME_DIR"
 # 只给 `-g` 的话，那一步仍可能去找别处（这里就撞到过 /root/.gradle）。
 export GRADLE_USER_HOME="$GRADLE_HOME_DIR"
 
+# 构建产物目录：和上面同理，NTFS 上 aapt2 / utime 会报「不允许的操作」。
+# app/build.gradle.kts 只认环境变量 / -Pdinner.build.dir，不在源码里写死路径，
+# 这样 GitHub Actions 的 runner 用默认的 app/build 也能跑。
+export DINNER_BUILD_DIR="${DINNER_BUILD_DIR:-/home/liguolong/.cache/dinner-build/app}"
+
 GRADLE="${GRADLE:-$ROOT/.toolchain/gradle-8.9/bin/gradle}"
 if [[ ! -x "$GRADLE" ]]; then
   GRADLE="$(command -v gradle || true)"

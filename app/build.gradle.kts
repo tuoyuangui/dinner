@@ -20,13 +20,24 @@ plugins {
  */
 val appVersionName = "3.8.0"
 
+/**
+ * 构建目录重定向：**只有本机需要，CI 与普通机器不设就走默认的 `app/build`。**
+ *
+ * 这台机器的工程放在 NTFS（fuseblk）分区上，aapt2 / utime 等文件属性操作会报
+ * 「不允许的操作」，所以构建产物要落到 ext4 的用户缓存目录。做法是命令行
+ * `-Pdinner.build.dir=...` 或环境变量 `DINNER_BUILD_DIR=...` 指定（`scripts/build.sh`
+ * 会自动导出后者），**不能在这里写死绝对路径**——那会让 GitHub Actions 的
+ * runner（没有 /home/liguolong）连配置阶段都过不去。
+ */
+val redirectedBuildDir = providers.gradleProperty("dinner.build.dir").orNull
+    ?: providers.environmentVariable("DINNER_BUILD_DIR").orNull
+if (!redirectedBuildDir.isNullOrBlank()) {
+    layout.buildDirectory = file(redirectedBuildDir)
+}
+
 android {
     namespace = "com.guolongli.dinner"
     compileSdk = 35
-
-    // 工程放在 NTFS（fuseblk）分区上，aapt2 / utime 等文件属性操作会报「不允许的操作」，
-    // 构建产物统一落到 ext4 的用户缓存目录，源码仍留在工程里。
-    layout.buildDirectory = file("/home/liguolong/.cache/dinner-build/app")
 
     defaultConfig {
         applicationId = "com.guolongli.dinner"

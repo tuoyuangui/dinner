@@ -1,0 +1,138 @@
+name: Android CI
+
+# 触发方式：
+#   push 到 main          → 跑单测 + 出 debug/release 包，产物上传为 artifact
+#   pull_request 到 main  → 同上，用于合入前把关（缓存只读）
+#   打 v* 标签             → 额外建一个 GitHub Release，附上安装包
+#   手动 Dispatch          → 随时补齐一个包，不用改代码
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一分支连续推送时取消上一轮，省额度也省时间
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # 这台工程约定的常量，改 compileSdk 时两处一起改
+  COMPILE_SDK: "35"
+  BUILD_TOOLS: "35.0.0"
+
+jobs:
+  build:
+    name: 单元测试 + 打 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 工程用 JDK 17 编译（sourceCompatibility/17、jvmTarget/17）
+      - name: 配置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 装完会把 ANDROID_HOME / ANDROID_SDK_ROOT 指好，并接受 licenses。
+      # 工程里 local.properties 是 .gitignore 掉的（含本机绝对路径），
+      # runner 上没有它，AGP 就靠这两个环境变量找 SDK。
+      - name: 配置 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK 组件
+        run: |
+          sdkmanager --install \
+            "platforms;android-${COMPILE_SDK}" \
+            "build-tools;${BUILD_TOOLS}" \
+            "platform-tools" > /dev/null
+          sdkmanager --list_installed | sed -n '1,12p'
+
+      # Robolectric 首次跑会下 android-all-instrumented（上百 MB），
+      # 缓存在 ~/.m2 下，key 跟着版本目录走。
+      - name: 缓存 Robolectric 的 android-all
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: robolectric-${{ runner.os }}-
+
+      # 负责 Gradle 依赖 / wrapper 发行版的缓存与 build scan
+      - name: 配置 Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # PR 只读缓存：不允许未合入的分支写脏缓存
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: 单元测试
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      # exportApks 是工程自己的出包任务：debug + release 各出两份，
+      # 一份带版本号（apk/dinner-<版本>-<类型>.apk），一份固定别名。
+      - name: 打 APK
+        run: ./gradlew :app:exportApks --stacktrace
+
+      - name: 校验产物
+        run: |
+          set -euo pipefail
+          AAPT2="$ANDROID_HOME/build-tools/${BUILD_TOOLS}/aapt2"
+          for apk in apk/dinner-*-release.apk apk/dinner-*-debug.apk; do
+            echo "== $apk"
+            "$AAPT2" dump badging "$apk" | head -1
+          done
+          echo "--- apk/ ---"
+          ls -lh apk
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dinner-apk
+          # 只传带版本号的那两份；固定别名 dinner.apk / dinner-release.apk
+          # 内容完全相同，传上去只是白占额度。
+          path: |
+            apk/dinner-*-debug.apk
+            apk/dinner-*-release.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    name: 发布 Release
+    # 只在打 v* 标签时跑（v3.8.0 之类），日常推送不建 Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 取回构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: dinner-apk
+          path: dist
+
+      # 再复制一份「dinner <版本>.apk」（文件名带空格），
+      # 与本地 scripts/package.sh 的命名保持一致，方便直接发给人装。
+      - name: 补一份带空格的包名
+        run: |
+          set -euo pipefail
+          src="$(ls dist/dinner-*-release.apk | head -1)"
+          ver="$(basename "$src" | sed -E 's/^dinner-(.*)-release\.apk$/\1/')"
+          cp "$src" "dist/dinner ${ver}.apk"
+          ls -lh dist
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/dinner-*-release.apk
+            dist/dinner *.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true

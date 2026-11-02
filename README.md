@@ -40,8 +40,8 @@
 | 软件 | 版本 | 说明 |
 |---|---|---|
 | JDK | 17 或更高 | AGP 9.x 需要（Temurin / OpenJDK 17 均可） |
-| Android SDK | platform 36 + build-tools 36 | `compileSdk 36`，`minSdk 28`（Android 9+） |
-| Gradle | 8.9 或更高 | `scripts/build.sh` 优先用 `.toolchain/gradle-8.9`，没有则回退到系统 `gradle`，无需 Android Studio |
+| Android SDK | platform 35 + build-tools 35 | `compileSdk 35`，`minSdk 28`（Android 9+），`targetSdk 35` |
+| Gradle | 8.9 或更高 | 仓库自带 `gradlew`（8.9）；`scripts/build.sh` 优先用 `.toolchain/gradle-8.9`，没有则回退到系统 `gradle` |
 
 不需要安装 Android Studio：只要有 JDK、Android SDK 命令行工具和 Gradle，就能出包并安装。
 
@@ -115,7 +115,7 @@ release 目前不做代码混淆与资源压缩（`isMinifyEnabled = false`）�
 | `app/src/`、`app/schemas/` | Kotlin / Compose 源码、资源、Room 导出 schema |
 | `build.gradle.kts`、`settings.gradle.kts`、`gradle.properties`、`gradle/libs.versions.toml` | 构建脚本与依赖版本目录 |
 | `scripts/`、`tools/` | 出包脚本、JDK 补丁、调试签名证书 |
-| `设计稿/`、`ref/` | 视觉目标与百度网盘接口文档存档 |
+| `设计稿/` | 视觉目标（PDF / PPTX） |
 | `README.md`、`LICENSE`、`.gitignore`、`.gitattributes` | 说明、协议与忽略规则 |
 
 | 不入库（见 `.gitignore`） | 原因 |
@@ -124,12 +124,36 @@ release 目前不做代码混淆与资源压缩（`isMinifyEnabled = false`）�
 | `.gradle/`、`.kotlin/`、`**/build/`、`.cxx/` | 构建缓存与中间产物，体积大且与本机环境绑定 |
 | `.toolchain/`、`local.properties` | 本机 JDK / Android SDK / Gradle 路径，工具链约 4.6 GB |
 | `.workbuddy/`、`check/`、`.Trash-0/` | 本地工具会话、临时校验工程、回收站残留 |
+| `ref/` | 百度网盘接口文档快照与参考 App 源码（第三方资料，约 12 MB）；接口约定已写进 `data/netdisk/` 注释 |
 
-克隆后先装好 JDK 17 与 Android SDK 36（`compileSdk 36`），再按上一节出包：
+克隆后先装好 JDK 17 与 Android SDK 35（`compileSdk 35`），再按上一节出包：
 
 ```bash
 ./scripts/package.sh all --clean   # 全量构建，产物落在 apk/
 ```
+
+## 持续集成
+
+`.github/workflows/android.yml` 负责「推上去就有一个能装的包」：
+
+| 触发 | 做什么 | 产物 |
+|---|---|---|
+| push 到 `main` / PR 到 `main` | 单元测试 → `:app:exportApks` → aapt2 校验 | `dinner-<版本>-debug.apk`、`dinner-<版本>-release.apk`（artifact，留 7 天） |
+| 打 `v*` 标签（如 `v3.8.0`） | 上面全部 + 建 GitHub Release | Release 附 `dinner-<版本>-release.apk` 与 `dinner <版本>.apk` |
+| 手动 Dispatch | 同 push | 同上 |
+
+用的是清一色公开标准动作（`setup-java` / `setup-android` / `setup-gradle`），跑在
+`ubuntu-latest`：JDK 17（temurin）+ Android SDK platform 35 + build-tools 35.0.0，
+Gradle 由仓库自带的 `gradlew`（8.9）提供。签名复用仓库里的 `tools/debug.jks`，
+所以**不需要配置任何 Secrets**。
+
+两点要留意：
+
+- 构建目录重定向是本机专用：`app/build.gradle.kts` 只在设了 `-Pdinner.build.dir`
+  或环境变量 `DINNER_BUILD_DIR` 时才改目录，不设就走默认的 `app/build`（CI 即如此）。
+  本地仍请用 `./scripts/build.sh`，它会把这些变量都导好。
+- 仓库目前托管在 GitCode，**不会自动执行 GitHub Actions**。workflow 是给 GitHub
+  （或支持 Actions 的镜像）准备的；在 GitCode 上照旧走本地的 `./scripts/package.sh`。
 
 ## 许可
 

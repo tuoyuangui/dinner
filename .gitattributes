@@ -22,6 +22,5 @@
 *.sh   text eol=lf
 *.bat  text eol=crlf
 
-# 语言统计时不要把参考资料算成代码
-ref/**      linguist-documentation
+# 语言统计时不要把设计稿算成代码
 设计稿/**    linguist-documentation

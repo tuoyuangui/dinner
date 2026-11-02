@@ -50,9 +50,16 @@ import com.guolongli.dinner.ui.theme.TextTertiary
 /** 开发者署名，写在一处：关于页展示的都是这一行 */
 private const val DEVELOPER_NAME = "Guolong Li"
 private const val DEVELOPER_EMAIL = "guolongli_upc@foxmail.com"
+private const val DEVELOPER_WEBSITE = "https://github.com/tuoyuangui/dinner"
 
 /** MIT 协议全文，「开发协议」卡片点开即看 */
 private val MIT_TEXT = """
+    本应用按“现状”提供。在法律允许范围内，开发者不对因使用本应用、版本更新、
+    设备故障、误操作、网络异常、第三方服务（包括但不限于百度网盘）异常
+    或其他不可抗力导致的数据丢失、损坏、不可恢复或无法访问承担任何责任。
+    强烈建议在更新版本前备份好数据，并为重要数据保留多份副本。
+    继续使用本应用即视为已知悉并同意本声明。
+
     MIT License
 
     Copyright (c) 2026 $DEVELOPER_NAME
@@ -165,7 +172,7 @@ fun AboutScreen(
 
             InfoCard(
                 title = "开发者",
-                body = "$DEVELOPER_NAME（$DEVELOPER_EMAIL）\n" +
+                body = "$DEVELOPER_NAME（$DEVELOPER_EMAIL）\n" + "$DEVELOPER_WEBSITE" +
                     "有建议或遇到问题，欢迎来信。",
             )
 

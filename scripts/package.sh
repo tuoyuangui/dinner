@@ -5,7 +5,8 @@
 #   ./scripts/package.sh              # debug + release
 #   ./scripts/package.sh debug        # 只出 debug
 #   ./scripts/package.sh release      # 只出 release
-#   ./scripts/package.sh all --clean  # 先 clean 再全量构建（发布前用这个）
+#   ./scripts/package.sh --clean      # 先 clean 再全量构建（默认 all）
+#   ./scripts/package.sh all --clean  # 同上，显式写 all
 #
 # 产物落在 apk/，两种名字同时给：
 #   apk/dinner-<版本>-debug.apk   带版本号，多版本可并存
@@ -16,6 +17,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUILD_SH="$ROOT/scripts/build.sh"
+APK_DIR="$ROOT/apk"
 
 usage() {
   cat <<'EOF'
@@ -25,36 +28,47 @@ usage() {
   release    只出 release 包（去掉 .debug 后缀，正式签名）
   all        两个都出（默认）
   --clean    先执行 clean，再全量构建。改了资源 / 图标 / 签名之后务必带上
+
+参数顺序不限，例如：./scripts/package.sh --clean release
 EOF
 }
 
-TARGET="${1:-all}"
-CLEAN_FLAG="${2:-}"
+TARGET="all"
+CLEAN=false
 
-case "$TARGET" in
-  debug | release | all) ;;
-  -h | --help)
-    usage
-    exit 0
-    ;;
-  *)
-    echo "未知目标: $TARGET" >&2
-    usage >&2
-    exit 1
-    ;;
-esac
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    debug | release | all)
+      TARGET="$1"
+      ;;
+    --clean)
+      CLEAN=true
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "未知参数: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
 
-if [[ -n "$CLEAN_FLAG" && "$CLEAN_FLAG" != "--clean" ]]; then
-  echo "未知参数: $CLEAN_FLAG" >&2
-  usage >&2
+if [[ ! -x "$BUILD_SH" ]]; then
+  echo "错误：找不到可执行的 $BUILD_SH" >&2
   exit 1
 fi
 
+mkdir -p "$APK_DIR"
+
 # clean 单独跑一次，不和 assemble 混在同一条命令里：
 # 混着跑时任务顺序依赖 Gradle 的调度，一旦并行就成了「一边删一边编译」。
-if [[ "$CLEAN_FLAG" == "--clean" ]]; then
+if [[ "$CLEAN" == true ]]; then
   echo "==> clean"
-  "$ROOT/scripts/build.sh" clean
+  "$BUILD_SH" clean
 fi
 
 case "$TARGET" in
@@ -70,9 +84,9 @@ case "$TARGET" in
 esac
 
 echo "==> 构建 $TARGET"
-"$ROOT/scripts/build.sh" "${TASKS[@]}"
+"$BUILD_SH" "${TASKS[@]}"
 
-# 清掉上一版的产物：apk/ 里堆着 3.6.0 / 3.7.0 时，
+# 清掉上一版的产物：apk/ 里堆着 *.*.* 时，
 # 用户很容易把旧包当成新的发出去（文件名只差一个版本号，肉眼很难分清）。
 # 只删带版本号的那些，固定别名（dinner.apk 等）留着——它们刚被覆盖成最新的。
 #
@@ -83,7 +97,7 @@ CURRENT_VERSION="$(sed -n 's/^val appVersionName = "\([^"]*\)".*/\1/p' \
 if [[ -z "$CURRENT_VERSION" ]]; then
   echo "警告：读不到 appVersionName，跳过清理旧产物" >&2
 else
-  find "$ROOT/apk" -maxdepth 1 -type f -name "dinner*.apk" \
+  find "$APK_DIR" -maxdepth 1 -type f -name "dinner*.apk" \
     ! -name "dinner.apk" ! -name "dinner-release.apk" \
     ! -name "dinner-${CURRENT_VERSION}.apk" \
     ! -name "dinner ${CURRENT_VERSION}.apk" \
@@ -94,4 +108,4 @@ fi
 
 echo
 echo "==> 产物"
-ls -lh "$ROOT/apk" | tail -n +2
+ls -lh "$APK_DIR" | tail -n +2

@@ -20,6 +20,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
 
 env:
   # 这台工程约定的常量，改 compileSdk 时两处一起改
@@ -113,6 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - name: 取回构建产物
         uses: actions/download-artifact@v4
@@ -127,7 +129,6 @@ jobs:
           set -euo pipefail
           src="$(ls dist/dinner-*-release.apk | head -1)"
           ver="$(basename "$src" | sed -E 's/^dinner-(.*)-release\.apk$/\1/')"
-          cp "$src" "dist/dinner ${ver}.apk"
           ls -lh dist
 
       - name: 创建 Release
@@ -135,6 +136,5 @@ jobs:
         with:
           files: |
             dist/dinner-*-release.apk
-            dist/dinner *.apk
           generate_release_notes: true
           fail_on_unmatched_files: true

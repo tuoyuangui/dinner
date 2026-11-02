@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        英文名：dinner。
+        之所以拆成 values-en 而不是在代码里按语言判断，是因为应用名由系统桌面读取，
+        只有资源限定符能在「系统语言是英文」时生效。
+        注意网盘那边认的也是 dinner（/apps/dinner/ 目录），两边保持一致。
+    -->
+    <string name="app_name">dinner</string>
+</resources>

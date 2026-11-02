@@ -1,0 +1,52 @@
+# ============================================================
+# 食伴 (dinner) —— 只把「能重新构建出安装包的有效代码与文档」入库
+# 判据：删掉之后能否靠源码重新长出来？能长出来的都是产物，不入库。
+# ============================================================
+
+# ---------- Gradle / Kotlin 构建缓存与中间产物 ----------
+.gradle/
+.kotlin/
+build/
+**/build/
+.cxx/
+.externalNativeBuild/
+captures/
+*.hprof
+*.class
+*.dex
+kotlin-js-store/
+
+# ---------- 安装包与打包输出（apk/dinner*.apk 等） ----------
+apk/
+*.apk
+*.aab
+*.ap_
+*.idsig
+*.apk.idsig
+
+# ---------- 本机环境（含绝对路径，换机器必须重写） ----------
+local.properties
+# 4.6 GB 的 JDK / Android SDK / Gradle 工具链缓存，只属于本机
+.toolchain/
+
+# ---------- IDE ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# ---------- 本地工具与临时目录 ----------
+.workbuddy/
+check/
+.Trash-0/
+*.log
+*.tmp
+*.bak
+
+# ---------- 系统垃圾 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.orig
+*.rej

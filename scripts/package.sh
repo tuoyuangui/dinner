@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# 出成品包：debug / release / 两个都要。
+#
+# 用法：
+#   ./scripts/package.sh              # debug + release
+#   ./scripts/package.sh debug        # 只出 debug
+#   ./scripts/package.sh release      # 只出 release
+#   ./scripts/package.sh all --clean  # 先 clean 再全量构建（发布前用这个）
+#
+# 产物落在 apk/，两种名字同时给：
+#   apk/dinner-<版本>-debug.apk   带版本号，多版本可并存
+#   apk/dinner.apk                固定名字，永远是最新那份，直接发人安装
+#
+# 构建细节（JDK 补丁、SDK 路径、构建目录重定向）都在 build.sh 里，
+# 这里只负责「跑哪些任务」和「跑完把产物摊出来」，不重复造一遍环境适配。
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+用法: ./scripts/package.sh [debug|release|all] [--clean]
+
+  debug      只出 debug 包（applicationId 带 .debug 后缀，可与正式包并存）
+  release    只出 release 包（去掉 .debug 后缀，正式签名）
+  all        两个都出（默认）
+  --clean    先执行 clean，再全量构建。改了资源 / 图标 / 签名之后务必带上
+EOF
+}
+
+TARGET="${1:-all}"
+CLEAN_FLAG="${2:-}"
+
+case "$TARGET" in
+  debug | release | all) ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "未知目标: $TARGET" >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+if [[ -n "$CLEAN_FLAG" && "$CLEAN_FLAG" != "--clean" ]]; then
+  echo "未知参数: $CLEAN_FLAG" >&2
+  usage >&2
+  exit 1
+fi
+
+# clean 单独跑一次，不和 assemble 混在同一条命令里：
+# 混着跑时任务顺序依赖 Gradle 的调度，一旦并行就成了「一边删一边编译」。
+if [[ "$CLEAN_FLAG" == "--clean" ]]; then
+  echo "==> clean"
+  "$ROOT/scripts/build.sh" clean
+fi
+
+case "$TARGET" in
+  debug)
+    TASKS=(":app:exportDebugApk" ":app:exportDebugApkAlias")
+    ;;
+  release)
+    TASKS=(":app:exportReleaseApk" ":app:exportReleaseApkAlias" ":app:exportVersionedSpacedApk" ":app:exportVersionedReleaseApk")
+    ;;
+  all)
+    TASKS=(":app:exportApks")
+    ;;
+esac
+
+echo "==> 构建 $TARGET"
+"$ROOT/scripts/build.sh" "${TASKS[@]}"
+
+# 清掉上一版的产物：apk/ 里堆着 3.6.0 / 3.7.0 时，
+# 用户很容易把旧包当成新的发出去（文件名只差一个版本号，肉眼很难分清）。
+# 只删带版本号的那些，固定别名（dinner.apk 等）留着——它们刚被覆盖成最新的。
+#
+# 版本号从 app/build.gradle.kts 里读 `appVersionName`，
+# 不用 gradle properties（那里的 version 是 project 版本，恒为 unspecified）。
+CURRENT_VERSION="$(sed -n 's/^val appVersionName = "\([^"]*\)".*/\1/p' \
+  "$ROOT/app/build.gradle.kts" | head -1)"
+if [[ -z "$CURRENT_VERSION" ]]; then
+  echo "警告：读不到 appVersionName，跳过清理旧产物" >&2
+else
+  find "$ROOT/apk" -maxdepth 1 -type f -name "dinner*.apk" \
+    ! -name "dinner.apk" ! -name "dinner-release.apk" \
+    ! -name "dinner-${CURRENT_VERSION}.apk" \
+    ! -name "dinner ${CURRENT_VERSION}.apk" \
+    ! -name "dinner-${CURRENT_VERSION}-debug.apk" \
+    ! -name "dinner-${CURRENT_VERSION}-release.apk" \
+    -print -delete 2>/dev/null || true
+fi
+
+echo
+echo "==> 产物"
+ls -lh "$ROOT/apk" | tail -n +2

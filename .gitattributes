@@ -1,0 +1,27 @@
+# 统一换行：仓库内一律 LF，工作区按平台自动转换
+* text=auto eol=lf
+
+# 二进制资源不要做换行转换，也不要尝试 diff
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.gif  binary
+*.ttf  binary
+*.otf  binary
+*.jar  binary
+*.jks  binary
+*.keystore binary
+*.apk  binary
+*.aab  binary
+*.zip  binary
+*.pdf  binary
+*.pptx binary
+
+# 出包脚本必须是 LF，否则在 Linux / macOS 上解释器会报错
+*.sh   text eol=lf
+*.bat  text eol=crlf
+
+# 语言统计时不要把参考资料算成代码
+ref/**      linguist-documentation
+设计稿/**    linguist-documentation

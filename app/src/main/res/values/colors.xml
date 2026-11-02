@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 图标底色：取自 ref/app，珊瑚橙 -->
+    <color name="ic_launcher_background">#FFFF7043</color>
+    <!-- 启动窗口与 Compose 首帧用同一块底色，避免「先白闪一下再变灰」 -->
+    <color name="page_background">#FFEEEEEE</color>
+</resources>

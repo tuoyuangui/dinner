@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        沉浸式展示：状态栏 / 导航栏透明，各页面自己 statusBarsPadding() 让开。
+        底色用页面同款浅灰而不是纯白：Compose 首帧到来前那一瞬看到的也是「食伴的底」，
+        不会先白闪一下再变灰。
+    -->
+    <style name="Theme.DinnerDesign" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/page_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 中文名：桌面、设置、最近任务里都显示「食伴」；英文环境见 values-en -->
+    <string name="app_name">食伴</string>
+</resources>

@@ -1,4 +1,4 @@
-name: Android CI
+name: Android CICD
 
 # 触发方式：
 #   push 到 main          → 跑单测 + 出 debug/release 包，产物上传为 artifact
@@ -46,7 +46,9 @@ jobs:
       # 工程里 local.properties 是 .gitignore 掉的（含本机绝对路径），
       # runner 上没有它，AGP 就靠这两个环境变量找 SDK。
       - name: 配置 Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
 
       - name: 安装 SDK 组件
         run: |
